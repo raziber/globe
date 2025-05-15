@@ -10,7 +10,7 @@ ser = serial.Serial(PORT, BAUD)
 time.sleep(2)
 
 snake_start = 0
-SNAKE_LENGTH = 25
+SNAKE_LENGTH = 2
 
 def send_frame():
     global snake_start
