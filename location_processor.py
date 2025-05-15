@@ -30,7 +30,7 @@ class LocationProcessor:
                 closest_led = led
         return closest_led
 
-    def find_leds_in_region(self, polygon, radius=0.2):
+    def find_leds_in_region(self, polygon, radius=0.4):
         led_ids = set()
         for theta, phi in polygon:
             for led in self.leds:
