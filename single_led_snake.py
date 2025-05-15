@@ -4,16 +4,23 @@ import sys
 import select
 import tty
 import termios
+import argparse
 
 PORT = '/dev/ttyAMA0'
 BAUD = 115200
 NUM_LEDS = 409
 SNAKE_LENGTH = 1
 
+# Parse command-line arguments
+parser = argparse.ArgumentParser(description="Control LED snake position")
+parser.add_argument('--start', type=int, default=0, help='Initial LED index (0–408)')
+args = parser.parse_args()
+
+snake_start = args.start % NUM_LEDS
+
+# Setup serial
 ser = serial.Serial(PORT, BAUD)
 time.sleep(2)
-
-snake_start = 0
 
 def send_frame():
     frame = bytearray()
@@ -42,13 +49,12 @@ fd = sys.stdin.fileno()
 old_settings = termios.tcgetattr(fd)
 
 try:
-    tty.setcbreak(fd)  # set terminal to raw mode
+    tty.setcbreak(fd)
     print("Press 'd' to move forward, 'a' to move backward. Ctrl+C to quit.")
 
     while True:
         if key_pressed():
             key = sys.stdin.read(1)
-
             if key == 'd':
                 snake_start = (snake_start + 1) % NUM_LEDS
                 send_frame()

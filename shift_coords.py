@@ -9,7 +9,7 @@ with open(INPUT_FILE, "r") as f:
 
 # Shift IDs by 1
 for entry in data:
-    if entry["id"] >= 55:
+    if entry["id"] >= 60:
       entry["id"] += 1
 
 # Save to new file

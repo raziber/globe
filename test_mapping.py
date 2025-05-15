@@ -6,7 +6,7 @@ PORT = '/dev/ttyAMA0'
 BAUD = 115200
 NUM_LEDS = 409
 DELAY = 0.1  # seconds
-JSON_PATH = 'coordinates_rotated.json'
+JSON_PATH = 'coordinates_shifted.json'
 
 # Open serial port
 ser = serial.Serial(PORT, BAUD)
