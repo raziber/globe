@@ -1,0 +1,41 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2835";
+
+    fragment@0 {
+        target = <&i2s>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    fragment@1 {
+        target-path = "/";
+        __overlay__ {
+            sound: max98357a {
+                compatible = "simple-audio-card";
+                simple-audio-card,name = "MAX98357A";
+                simple-audio-card,format = "i2s";
+                simple-audio-card,bitclock-master = <&dailink0_master>;
+                simple-audio-card,frame-master = <&dailink0_master>;
+
+                simple-audio-card,cpu {
+                    sound-dai = <&i2s>;
+                };
+
+                dailink0_master: simple-audio-card,codec {
+                    sound-dai = <&codec>;
+                };
+            };
+
+            codec: codec@0 {
+                #sound-dai-cells = <0>;
+                compatible = "maxim,max98357a";
+                status = "okay";
+            };
+        };
+    };
+};
+

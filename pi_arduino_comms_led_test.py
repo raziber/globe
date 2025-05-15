@@ -1,7 +1,7 @@
 import serial
 import time
 
-PORT = "/dev/ttyS0"
+PORT = '/dev/ttyAMA0'
 BAUD = 115200
 NUM_LEDS = 409
 DELAY = 0.1  # Safe delay
@@ -16,10 +16,10 @@ def send_frame():
     frame.extend([0xAA, 0x55, (payload_len >> 8) & 0xFF, payload_len & 0xFF])
 
     for i in range(NUM_LEDS):
-        if i < 221:
-            r, g, b = 0, 255, 0  # Green
+        if i < 46:
+            r, g, b = 0, 55, 0  # Green
         else:
-            r, g, b = 0, 0, 255  # Blue
+            r, g, b = 0, 0, 55  # Blue
         frame.extend([r, g, b])
 
     ser.write(frame)
