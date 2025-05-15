@@ -1,5 +1,13 @@
 import math
 import json
+import os
+
+OUTPUT_FILE = "led_output.json"
+
+def write_led_output(data):
+    with open(OUTPUT_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"💾 Wrote LED data to {OUTPUT_FILE}")
 
 class LocationProcessor:
     def __init__(self, led_layout):
@@ -51,6 +59,7 @@ class LocationProcessor:
                     "led_id": closest_led["id"]
                 }
                 print(f"Lighting LED #{closest_led['id']} at θ={theta:.2f}, ϕ={phi:.2f}")
+                write_led_output(processed)
                 return processed
 
         elif location_data.get("type") == "region":

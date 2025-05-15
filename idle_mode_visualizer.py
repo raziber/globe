@@ -1,6 +1,15 @@
 import math
 import json
 import time
+import os
+
+OUTPUT_FILE = "led_output.json"
+
+def write_led_output(data):
+    with open(OUTPUT_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"💾 Wrote {len(data['pixels'])} idle pixels to {OUTPUT_FILE}")
+
 
 class IdleModeVisualizer:
     def __init__(self, leds):
@@ -29,7 +38,9 @@ class IdleModeVisualizer:
             return [0, 105, 148] if is_water(theta, phi) else [139, 69, 19]
 
         print("🌊 Idle Mode: Land vs Water")
-        print(json.dumps(self.generate_idle_map(color_func), indent=2))
+        output = self.generate_idle_map(color_func)
+        write_led_output(output)
+
 
     def display_day_night(self):
         def sun_direction():
@@ -44,7 +55,9 @@ class IdleModeVisualizer:
             return [255, 255, 200] if brightness > 0.5 else [10, 10, 40]
 
         print("🌗 Idle Mode: Day vs Night")
-        print(json.dumps(self.generate_idle_map(color_func), indent=2))
+        output = self.generate_idle_map(color_func)
+        write_led_output(output)
+
 
     def display_altitude_map(self):
         def color_func(theta, phi):
@@ -57,7 +70,9 @@ class IdleModeVisualizer:
                 return [0, 0, 255]
 
         print("🗻 Idle Mode: Altitude Map")
-        print(json.dumps(self.generate_idle_map(color_func), indent=2))
+        output = self.generate_idle_map(color_func)
+        write_led_output(output)
+
 
     def run_idle_loop(self, voice_interface):
         print("🌙 Entering idle mode...")
