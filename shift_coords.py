@@ -1,7 +1,7 @@
 import json
 
-INPUT_FILE = "coordinates_rotated.json"
-OUTPUT_FILE = "coordinates_shifted.json"
+INPUT_FILE = "coordinates_shifted_1.json"
+OUTPUT_FILE = "coordinates_shifted_2.json"
 
 # Load original JSON
 with open(INPUT_FILE, "r") as f:

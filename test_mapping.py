@@ -4,9 +4,9 @@ import json
 
 PORT = '/dev/ttyAMA0'
 BAUD = 115200
-NUM_LEDS = 409
+NUM_LEDS = 402
 DELAY = 0.1  # seconds
-JSON_PATH = 'coordinates_shifted.json'
+JSON_PATH = 'coordinates_shifted_2.json'
 
 # Open serial port
 ser = serial.Serial(PORT, BAUD)
