@@ -3,8 +3,9 @@
 #define NUM_LEDS 188
 #define LED_PIN 6
 #define DEBUG_LED 13
+#define TOTAL_LEDS 402
 
-#define START_INDEX 221
+#define START_INDEX 220
 #define BYTES_TO_SKIP (START_INDEX * 3)
 #define BYTES_TO_READ (NUM_LEDS * 3)
 
@@ -29,7 +30,7 @@ void loop() {
         uint8_t len_hi = Serial.read();
         uint8_t len_lo = Serial.read();
         int expected_len = (len_hi << 8) | len_lo;
-        if (expected_len == 409 * 3) {
+        if (expected_len == TOTAL_LEDS * 3) {
           synced = true;
           digitalWrite(DEBUG_LED, HIGH);
         }

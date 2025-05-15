@@ -10,7 +10,7 @@ ser = serial.Serial(PORT, BAUD)
 time.sleep(2)
 
 snake_start = 0
-SNAKE_LENGTH = 25
+SNAKE_LENGTH = 20
 
 def send_frame():
     global snake_start
@@ -25,9 +25,9 @@ def send_frame():
                    (snake_start + SNAKE_LENGTH > NUM_LEDS and i < (snake_start + SNAKE_LENGTH) % NUM_LEDS)
 
         if in_snake:
-            r, g, b = 25, 0, 0  # Red snake
+            r, g, b = 100, 0, 0  # Red snake
         else:
-            r, g, b = 0, 0, 25  # Blue background
+            r, g, b = 0, 0, 6  # Blue background
 
         frame.extend([r, g, b])
 

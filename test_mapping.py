@@ -4,9 +4,9 @@ import json
 
 PORT = '/dev/ttyAMA0'
 BAUD = 115200
-NUM_LEDS = 409
+NUM_LEDS = 402
 DELAY = 0.1  # seconds
-JSON_PATH = 'coordinates_shifted.json'
+JSON_PATH = 'coordinates_shifted_2.json'
 
 # Open serial port
 ser = serial.Serial(PORT, BAUD)
@@ -22,8 +22,9 @@ def build_color_map():
     for coord in coordinates:
         idx = coord["id"]
         phi = coord["phi"]
+        theta = coord["theta"]
         if 0 <= idx < NUM_LEDS:
-            if phi < 90:
+            if theta < 180:
                 color_map[idx] = (0, 0, 55)  # blue
             else:
                 color_map[idx] = (55, 0, 0)  # red

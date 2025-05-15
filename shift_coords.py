@@ -1,7 +1,7 @@
 import json
 
-INPUT_FILE = "coordinates.json"
-OUTPUT_FILE = "coordinates_shifted.json"
+INPUT_FILE = "coordinates_shifted_1.json"
+OUTPUT_FILE = "coordinates_shifted_2.json"
 
 # Load original JSON
 with open(INPUT_FILE, "r") as f:
@@ -9,7 +9,8 @@ with open(INPUT_FILE, "r") as f:
 
 # Shift IDs by 1
 for entry in data:
-    entry["id"] -= 1
+    if entry["id"] >= 60:
+      entry["id"] += 1
 
 # Save to new file
 with open(OUTPUT_FILE, "w") as f:
