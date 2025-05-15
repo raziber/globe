@@ -32,7 +32,7 @@ def send_frame():
         frame.extend([r, g, b])
 
     ser.write(frame)
-    snake_start = (snake_start + 1) % NUM_LEDS
+    snake_start = (snake_start + 4) % NUM_LEDS
 
 while True:
     send_frame()
