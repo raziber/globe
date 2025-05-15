@@ -73,24 +73,28 @@ class LocationProcessor:
                         theta, phi = self.spherical_from_latlon(lat, lon)
                         spherical_polygon.append([theta, phi])
                         print(f"- Point: lat={lat}, lon={lon} → θ={theta:.2f}, ϕ={phi:.2f}")
-                        # Approximate region fill using bounding box
-                        thetas = [pt[0] for pt in spherical_polygon]
-                        phis = [pt[1] for pt in spherical_polygon]
-                        theta_min, theta_max = min(thetas), max(thetas)
-                        phi_min, phi_max = min(phis), max(phis)
 
-                        region_leds = [
-                            led["id"]
-                            for led in self.leds
-                            if theta_min <= led["theta"] <= theta_max and phi_min <= led["phi"] <= phi_max
-                        ]
+                # Approximate region fill using bounding box
+                thetas = [pt[0] for pt in spherical_polygon]
+                phis = [pt[1] for pt in spherical_polygon]
+                theta_min, theta_max = min(thetas), max(thetas)
+                phi_min, phi_max = min(phis), max(phis)
 
-                return {
+                region_leds = [
+                    led["id"]
+                    for led in self.leds
+                    if theta_min <= led["theta"] <= theta_max and phi_min <= led["phi"] <= phi_max
+                ]
+
+                processed = {
                     "type": "region",
                     "polygon": spherical_polygon,
                     "color_rgb": color,
                     "led_ids": region_leds
                 }
+                write_led_output(processed)
+                return processed
 
         print("⚠️ Unknown or incomplete location data.")
+        write_led_output({"type": "none"})
         return None
