@@ -94,6 +94,29 @@ class LocationProcessor:
                 }
                 write_led_output(processed)
                 return processed
+        elif location_data.get("type") == "region":
+            polygon = location_data.get("polygon")
+            spherical_polygon = []
+            if polygon:
+                print("Lighting region polygon:")
+                for entry in polygon:
+                    if isinstance(entry, list) and len(entry) == 2:
+                        lat, lon = entry
+                        theta, phi = self.spherical_from_latlon(lat, lon)
+                        spherical_polygon.append([theta, phi])
+                        print(f"- Point: lat={lat}, lon={lon} → θ={theta:.2f}, ϕ={phi:.2f}")
+
+                # ✅ Approximate fill using circular proximity to polygon edges
+                region_leds = self.find_leds_in_region(spherical_polygon, radius=0.2)
+
+                processed = {
+                    "type": "region",
+                    "polygon": spherical_polygon,
+                    "color_rgb": color,
+                    "led_ids": region_leds
+                }
+                write_led_output(processed)
+                return processed
 
         print("⚠️ Unknown or incomplete location data.")
         write_led_output({"type": "none"})
