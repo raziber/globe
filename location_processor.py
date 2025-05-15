@@ -100,6 +100,20 @@ class LocationProcessor:
         color = location_data.get("color_rgb", [255, 255, 255])
         print(f"🎨 Color for highlight: RGB{tuple(color)}")
 
+        # Radius scaling: LED sphere to globe radius
+        self.radius_scale = 135.8 / 168.3
+
+        def spherical_to_cartesian(theta, phi):
+            r = self.radius_scale
+            x = r * math.sin(theta) * math.cos(phi)
+            y = r * math.sin(theta) * math.sin(phi)
+            z = r * math.cos(theta)
+            return (x, y, z)
+
+        def vector_distance(v1, v2):
+            dot = sum(a * b for a, b in zip(v1, v2))
+            return math.acos(max(-1.0, min(1.0, dot)))  # safe clamp
+
         if location_data.get("type") == "point":
             lat = location_data.get("lat")
             lon = location_data.get("lon")
@@ -128,43 +142,33 @@ class LocationProcessor:
                         theta, phi = self.debug_latlon_to_spherical(lat, lon)
                         spherical_polygon.append([theta, phi])
 
-                # Step 1: Try ray-casting polygon match
+                # Step 1: Check which LEDs fall inside the polygon
                 region_leds = [
                     led["id"]
                     for led in self.leds
                     if self.point_in_polygon(led["theta"], led["phi"], spherical_polygon)
                 ]
 
-                # Step 2: Fallback if no LEDs found
+                # Step 2: Fallback to nearest LEDs if none found
                 if not region_leds:
                     print("⚠️ No LEDs found inside polygon. Finding closest fallback LEDs...")
 
-                    def spherical_to_xyz(theta, phi):
-                        x = math.sin(theta) * math.cos(phi)
-                        y = math.sin(theta) * math.sin(phi)
-                        z = math.cos(theta)
-                        return (x, y, z)
-
-                    def vector_distance(v1, v2):
-                        dot = sum(a * b for a, b in zip(v1, v2))
-                        return math.acos(max(-1.0, min(1.0, dot)))  # clamp for safety
-
                     center_theta = sum(p[0] for p in spherical_polygon) / len(spherical_polygon)
                     center_phi = sum(p[1] for p in spherical_polygon) / len(spherical_polygon)
-                    center_vec = spherical_to_xyz(center_theta, center_phi)
+                    center_vec = spherical_to_cartesian(center_theta, center_phi)
 
                     sorted_leds = sorted(
                         self.leds,
                         key=lambda led: vector_distance(
-                            spherical_to_xyz(led["theta"], led["phi"]), center_vec
+                            spherical_to_cartesian(led["theta"], led["phi"]),
+                            center_vec
                         )
                     )
 
-                    fallback_leds = sorted_leds[:5]  # or any other fallback count
+                    fallback_leds = sorted_leds[:5]
                     region_leds = [led["id"] for led in fallback_leds]
-                    print(f"✅ Using fallback LEDs: {[led['id'] for led in fallback_leds]}")
+                    print(f"✅ Using fallback LEDs: {region_leds}")
 
-                # Final output
                 processed = {
                     "type": "region",
                     "polygon": spherical_polygon,
