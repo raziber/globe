@@ -64,7 +64,18 @@ class LocationProcessor:
                         theta, phi = self.spherical_from_latlon(lat, lon)
                         spherical_polygon.append([theta, phi])
                         print(f"- Point: lat={lat}, lon={lon} → θ={theta:.2f}, ϕ={phi:.2f}")
-                region_leds = self.find_leds_in_region(spherical_polygon)
+                        # Approximate region fill using bounding box
+                        thetas = [pt[0] for pt in spherical_polygon]
+                        phis = [pt[1] for pt in spherical_polygon]
+                        theta_min, theta_max = min(thetas), max(thetas)
+                        phi_min, phi_max = min(phis), max(phis)
+
+                        region_leds = [
+                            led["id"]
+                            for led in self.leds
+                            if theta_min <= led["theta"] <= theta_max and phi_min <= led["phi"] <= phi_max
+                        ]
+
                 return {
                     "type": "region",
                     "polygon": spherical_polygon,

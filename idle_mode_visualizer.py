@@ -12,8 +12,14 @@ class IdleModeVisualizer:
             theta = led["theta"]
             phi = led["phi"]
             color = color_func(theta, phi)
-            pixels.append({"theta": theta, "phi": phi, "color_rgb": color})
+            pixels.append({
+                "id": led["id"],
+                "theta": theta,
+                 "phi": phi,
+                "color_rgb": color
+            })
         return {"type": "fullmap", "pixels": pixels}
+
 
     def display_land_vs_water(self):
         def is_water(theta, phi):
