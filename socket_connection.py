@@ -14,33 +14,61 @@ def connect():
     writer = sock.makefile('w')
     return writer, sock
 
-frame = 0
-
-while True:
-    try:
-        print(f"Connecting to {HOST}:{PORT} ...")
-        writer, sock = connect()
-        print("Connected.")
-
-        while True:
-            # Build the LED color frame (snake animation)
-            color_map = [
-                [0, 0, 255] if i == frame % NUM_LEDS else [25, 0, 0]
-                for i in range(NUM_LEDS)
-            ]
-
-            # Send JSON data
-            writer.write(json.dumps(color_map) + '\n')
-            writer.flush()
-
-            frame += 1
-            time.sleep(FRAME_DELAY)
-
-    except (ConnectionResetError, BrokenPipeError, socket.error) as e:
-        print("⚠️ Disconnected or failed to send. Reconnecting in 2s...", e)
-        time.sleep(2)
-    finally:
+def send_to_socket(data, writer=None, sock=None, reconnect=True):
+    """
+    Send JSON data to a socket connection.
+    Returns (success, writer, sock)
+    """
+    print(f"Sending data to socket")
+    if writer is None or sock is None:
         try:
-            sock.close()
-        except:
-            pass
+            writer, sock = connect()
+            print(f"Connected to {HOST}:{PORT}")
+        except socket.error as e:
+            print(f"⚠️ Failed to connect: {e}")
+            return False, None, None
+
+    try:
+        print("writing")
+        writer.write(json.dumps(data) + '\n')
+        print("flushing")
+        writer.flush()
+        return True, writer, sock
+    except (ConnectionResetError, BrokenPipeError, socket.error) as e:
+        print(f"⚠️ Failed to send data: {e}")
+        if reconnect:
+            try:
+                sock.close()
+            except:
+                pass
+            return send_to_socket(data, None, None, reconnect)
+        return False, None, None
+
+# try:
+#     frame = 0
+#     while True:
+#         print(f"Connecting to {HOST}:{PORT} ...")
+#         writer, sock = connect()
+#         print("Connected.")
+
+#         while True:
+#             color_map = [
+#                 [255, 255, 255] if i == frame % NUM_LEDS else [25, 0, 0]
+#                 for i in range(NUM_LEDS)
+#             ]
+
+#             success, writer, sock = send_to_socket(color_map, writer, sock)
+#             if not success:
+#                 break  # reconnect
+
+#             frame += 1
+#             time.sleep(FRAME_DELAY)
+
+# except KeyboardInterrupt:
+#     print("\n🛑 Stopped by Ctrl+C")
+
+# finally:
+#     try:
+#         sock.close()
+#     except:
+#         pass

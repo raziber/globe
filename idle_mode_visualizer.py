@@ -5,14 +5,11 @@ import os
 import random
 from playsound import playsound
 import threading
+from socket_connection import send_to_socket
 
-
-OUTPUT_FILE = "led_output.json"
-
-def write_led_output(data):
-    with open(OUTPUT_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-    print(f"💾 Wrote {len(data['pixels'])} idle pixels to {OUTPUT_FILE}")
+# Global socket connection variables
+writer = None
+sock = None
 
 
 class IdleModeVisualizer:
@@ -40,10 +37,11 @@ class IdleModeVisualizer:
 
         def color_func(theta, phi):
             return [0, 105, 148] if is_water(theta, phi) else [139, 69, 19]
-
+            
         print("🌊 Idle Mode: Land vs Water")
         output = self.generate_idle_map(color_func)
-        write_led_output(output)
+        global writer, sock
+        success, writer, sock = send_to_socket(output, writer, sock)
 
     def display_day_night(self, duration=30, step_seconds=1):
         def sun_direction(shift_deg):
@@ -63,7 +61,8 @@ class IdleModeVisualizer:
                 return [255, 255, 200] if brightness > 0.5 else [10, 10, 40]
 
             output = self.generate_idle_map(color_func)
-            write_led_output(output)
+            global writer, sock
+            success, writer, sock = send_to_socket(output, writer, sock)
 
             for _ in range(step_seconds):
                 if self.voice_interface:
@@ -86,7 +85,8 @@ class IdleModeVisualizer:
 
         print("🗻 Idle Mode: Altitude Map")
         output = self.generate_idle_map(color_func)
-        write_led_output(output)
+        global writer, sock
+        success, writer, sock = send_to_socket(output, writer, sock)
 
     def display_day_night_animated(self, duration=30, frame_rate=5):
         """
@@ -115,7 +115,8 @@ class IdleModeVisualizer:
                     return [10, 10, 40]     # Night
 
             output = self.generate_idle_map(color_func)
-            write_led_output(output)
+            global writer, sock
+            success, writer, sock = send_to_socket(output, writer, sock)
 
             # Check for wake word interrupt
             if self.voice_interface:
@@ -126,6 +127,7 @@ class IdleModeVisualizer:
                     return self.voice_interface.listen(timeout=10)
 
             time.sleep(frame_delay)
+            
     def display_land_vs_water_animated(self, duration=30, frame_rate=5):
         """
         Pulsing animation between land and water using brightness waves.
@@ -154,7 +156,8 @@ class IdleModeVisualizer:
                 return [int(c * (0.5 + 0.5 * wave)) for c in base]
 
             output = self.generate_idle_map(color_func)
-            write_led_output(output)
+            global writer, sock
+            success, writer, sock = send_to_socket(output, writer, sock)
 
             # Wake word check
             if self.voice_interface:
@@ -165,8 +168,6 @@ class IdleModeVisualizer:
                     return self.voice_interface.listen(timeout=10)
 
             time.sleep(frame_delay)
-
-    
 
     def display_lightning_storms(self, duration=30, frame_rate=10, flash_probability=0.02):
         """
@@ -197,7 +198,6 @@ class IdleModeVisualizer:
                 else:
                     color = [10, 10, 30]  # Night blue
 
-
                 pixels.append({
                     "id": led["id"],
                     "theta": theta,
@@ -210,7 +210,8 @@ class IdleModeVisualizer:
                 "pixels": pixels
             }
 
-            write_led_output(output)
+            global writer, sock
+            success, writer, sock = send_to_socket(output, writer, sock)
 
             # Wake word check
             if self.voice_interface:
@@ -221,7 +222,6 @@ class IdleModeVisualizer:
                     return self.voice_interface.listen(timeout=10)
 
             time.sleep(frame_delay)
-
 
     def run_idle_loop(self, voice_interface):
         print("🌙 Entering idle mode...")
