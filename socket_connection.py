@@ -18,6 +18,17 @@ def send_to_socket(data, writer=None, sock=None, reconnect=True):
     """
     Send JSON data to a socket connection.
     Returns (success, writer, sock)
+
+    ALWAYS send data of the format:
+    [
+        [R, G, B],  // LED 0
+        [R, G, B],  // LED 1
+        ...
+        [R, G, B]   // LED 401
+    ]
+
+    total 402 LEDs
+    don't send more or less or anything else
     """
     print(f"Sending data to socket")
     if writer is None or sock is None:

@@ -3,13 +3,61 @@ import json
 import os
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # Required for 3D plotting
+from socket_connection import send_to_socket, NUM_LEDS
+
+# Global socket connection variables
+writer = None
+sock = None
+
+# this file does the following:
+# 1. Loads LED layout from a JSON file
+# 2. Converts latitude/longitude to spherical coordinates
+# 3. Finds the closest LED to a given point
+# 4. Finds LEDs within a polygon region
+# 5. Plots the LEDs and the polygon in 3D
+# 6. Sends the LED data to the socket for external use
 
 OUTPUT_FILE = "led_output.json"
 
 def write_led_output(data):
+    """Legacy function to write data to file - kept for compatibility"""
     with open(OUTPUT_FILE, "w") as f:
         json.dump(data, f, indent=2)
     print(f"💾 Wrote LED data to {OUTPUT_FILE}")
+
+def convert_to_socket_format(data, num_leds=NUM_LEDS):
+    """
+    Convert our structured data format to the simple array format required by the socket:
+    [
+        [R, G, B],  // LED 0
+        [R, G, B],  // LED 1
+        ...
+        [R, G, B]   // LED 401
+    ]
+    """
+    # Create default colors (all dark)
+    DEFAULT_COLOR = [0, 0, 0]  # Black/off
+    colors = [DEFAULT_COLOR.copy() for _ in range(num_leds)]
+    
+    if data.get("type") == "none":
+        # All LEDs off, return as is
+        return colors
+        
+    elif data.get("type") == "point":
+        # Single LED lit
+        if "led_id" in data:
+            led_id = data["led_id"]
+            if 0 <= led_id < num_leds:
+                colors[led_id] = data.get("color_rgb", [255, 255, 255])
+                
+    elif data.get("type") == "region":
+        # Multiple LEDs lit
+        if "led_ids" in data:
+            for led_id in data["led_ids"]:
+                if 0 <= led_id < num_leds:
+                    colors[led_id] = data.get("color_rgb", [255, 255, 255])
+                    
+    return colors
 
 class LocationProcessor:
     def __init__(self, led_layout):
@@ -97,6 +145,8 @@ class LocationProcessor:
         plt.show()
 
     def process_location(self, location_data):
+        global writer, sock
+        
         color = location_data.get("color_rgb", [255, 255, 255])
         print(f"🎨 Color for highlight: RGB{tuple(color)}")
 
@@ -114,6 +164,8 @@ class LocationProcessor:
             dot = sum(a * b for a, b in zip(v1, v2))
             return math.acos(max(-1.0, min(1.0, dot)))  # safe clamp
 
+        processed = None
+
         if location_data.get("type") == "point":
             lat = location_data.get("lat")
             lon = location_data.get("lon")
@@ -128,8 +180,8 @@ class LocationProcessor:
                     "led_id": closest_led["id"]
                 }
                 print(f"📍 Lighting LED #{closest_led['id']} at θ={theta:.2f}, ϕ={phi:.2f}")
+                # Write to file for debugging/backward compatibility
                 write_led_output(processed)
-                return processed
 
         elif location_data.get("type") == "region":
             polygon = location_data.get("polygon")
@@ -177,13 +229,23 @@ class LocationProcessor:
                 }
 
                 self.plot_region_and_leds(spherical_polygon, region_leds)
+                # Write to file for debugging/backward compatibility
                 write_led_output(processed)
-                return processed
 
-        print("⚠️ Unknown or incomplete location data.")
-        write_led_output({"type": "none"})
-        return None
+        if processed is None:
+            print("⚠️ Unknown or incomplete location data.")
+            processed = {"type": "none"}
+            # Write to file for debugging/backward compatibility
+            write_led_output(processed)
 
+        # Convert the processed data to socket format (402 RGB array)
+        socket_data = convert_to_socket_format(processed)
+        
+        # Send to socket
+        print(f"📡 Sending {len(socket_data)} LEDs to socket")
+        success, writer, sock = send_to_socket(socket_data, writer, sock)
+        
+        return processed
 
     def point_in_polygon(self, x, y, poly):
         """

@@ -5,12 +5,34 @@ import os
 import random
 from playsound import playsound
 import threading
-from socket_connection import send_to_socket
+from socket_connection import send_to_socket, NUM_LEDS
 
 # Global socket connection variables
 writer = None
 sock = None
 
+def convert_to_socket_format(data):
+    """
+    Convert our structured data format to the simple array format required by the socket:
+    [
+        [R, G, B],  // LED 0
+        [R, G, B],  // LED 1
+        ...
+        [R, G, B]   // LED 401
+    ]
+    """
+    # Create default colors (all LEDs off)
+    colors = [[0, 0, 0] for _ in range(NUM_LEDS)]
+    
+    # For fullmap data, set colors based on pixel IDs
+    if data.get("type") == "fullmap" and "pixels" in data:
+        for pixel in data["pixels"]:
+            if "id" in pixel and "color_rgb" in pixel:
+                led_id = pixel["id"]
+                if 0 <= led_id < NUM_LEDS:
+                    colors[led_id] = pixel["color_rgb"]
+    
+    return colors
 
 class IdleModeVisualizer:
     def __init__(self, leds):
@@ -41,7 +63,8 @@ class IdleModeVisualizer:
         print("🌊 Idle Mode: Land vs Water")
         output = self.generate_idle_map(color_func)
         global writer, sock
-        success, writer, sock = send_to_socket(output, writer, sock)
+        socket_data = convert_to_socket_format(output)
+        success, writer, sock = send_to_socket(socket_data, writer, sock)
 
     def display_day_night(self, duration=30, step_seconds=1):
         def sun_direction(shift_deg):
@@ -62,7 +85,8 @@ class IdleModeVisualizer:
 
             output = self.generate_idle_map(color_func)
             global writer, sock
-            success, writer, sock = send_to_socket(output, writer, sock)
+            socket_data = convert_to_socket_format(output)
+            success, writer, sock = send_to_socket(socket_data, writer, sock)
 
             for _ in range(step_seconds):
                 if self.voice_interface:
@@ -82,11 +106,12 @@ class IdleModeVisualizer:
                 return [0, 255, 0]
             else:
                 return [0, 0, 255]
-
+                
         print("🗻 Idle Mode: Altitude Map")
         output = self.generate_idle_map(color_func)
         global writer, sock
-        success, writer, sock = send_to_socket(output, writer, sock)
+        socket_data = convert_to_socket_format(output)
+        success, writer, sock = send_to_socket(socket_data, writer, sock)
 
     def display_day_night_animated(self, duration=30, frame_rate=5):
         """
@@ -116,7 +141,8 @@ class IdleModeVisualizer:
 
             output = self.generate_idle_map(color_func)
             global writer, sock
-            success, writer, sock = send_to_socket(output, writer, sock)
+            socket_data = convert_to_socket_format(output)
+            success, writer, sock = send_to_socket(socket_data, writer, sock)
 
             # Check for wake word interrupt
             if self.voice_interface:
@@ -157,7 +183,8 @@ class IdleModeVisualizer:
 
             output = self.generate_idle_map(color_func)
             global writer, sock
-            success, writer, sock = send_to_socket(output, writer, sock)
+            socket_data = convert_to_socket_format(output)
+            success, writer, sock = send_to_socket(socket_data, writer, sock)
 
             # Wake word check
             if self.voice_interface:
@@ -211,7 +238,8 @@ class IdleModeVisualizer:
             }
 
             global writer, sock
-            success, writer, sock = send_to_socket(output, writer, sock)
+            socket_data = convert_to_socket_format(output)
+            success, writer, sock = send_to_socket(socket_data, writer, sock)
 
             # Wake word check
             if self.voice_interface:
