@@ -2,6 +2,7 @@ from enum import Enum
 import os
 from speech_to_text import SpeechToText
 from gpt_handler import GPTHandler
+from text_to_speech import TextToSpeech
 import time
 
 class State(Enum):
@@ -25,6 +26,18 @@ class Assistant:
             print(f"Warning: {e}")
             print("GPT functionality will not be available.")
             self.gpt_available = False
+            
+        # Initialize the text-to-speech handler
+        try:
+            self.text_to_speech = TextToSpeech()
+            self.tts_available = True
+            # Select a voice - you can change this to any of:
+            # "alloy", "echo", "fable", "onyx", "nova", "shimmer"
+            self.text_to_speech.set_voice("nova")  # A pleasant, clear voice
+        except ValueError as e:
+            print(f"Warning: {e}")
+            print("Text-to-speech functionality will not be available.")
+            self.tts_available = False
             
         print("Assistant initialized.")
 
@@ -108,8 +121,7 @@ class Assistant:
                 print(f"Error processing with GPT: {e}")
                 self.response = f"I'm sorry, I encountered an error processing your request: {str(e)}"
                 self.location_data = None
-        else:
-            # Fallback if GPT is not available
+        else:            # Fallback if GPT is not available
             print("GPT not available, using fallback response")
             self.response = f"You asked: '{self.current_query}'. I'm sorry, but I can't provide a detailed answer right now."
             self.location_data = None
@@ -126,8 +138,13 @@ class Assistant:
         # Display the response
         print(f"Globe Assistant: {self.response}")
         
-        # Here you would implement text-to-speech for response
-        # For example: text_to_speech.speak(self.response)
+        # Use text-to-speech if available
+        if self.tts_available:
+            try:
+                print("Speaking response...")
+                self.text_to_speech.speak(self.response)
+            except Exception as e:
+                print(f"Error in text-to-speech: {e}")
         
         # If there's location data, you would update the globe visualization
         if hasattr(self, 'location_data') and self.location_data:
@@ -143,10 +160,25 @@ class Assistant:
             elif location_type == 'region':
                 polygon = self.location_data.get('polygon', [])
                 color = self.location_data.get('color_rgb', [0, 0, 255])  # Default to blue if no color specified
-                print(f"Globe should highlight region with {len(polygon)} points and color {color}")
-                # Here you would call your globe visualization function
+                print(f"Globe should highlight region with {len(polygon)} points and color {color}")                # Here you would call your globe visualization function
                 # For example: globe.highlight_region(polygon, color)
         
         import time
         time.sleep(1)  # Pause before returning to idle
         self.state = State.IDLE
+        
+    def cleanup(self):
+        """
+        Clean up resources before exiting.
+        """
+        print("Cleaning up Assistant resources...")
+        
+        # Clean up text-to-speech resources if available
+        if hasattr(self, 'tts_available') and self.tts_available:
+            try:
+                print("Cleaning up text-to-speech resources...")
+                self.text_to_speech.cleanup()
+            except Exception as e:
+                print(f"Error cleaning up text-to-speech: {e}")
+                
+        print("Assistant cleanup complete.")

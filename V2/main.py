@@ -26,10 +26,17 @@ def setup_environment():
             print("Exiting...")
             sys.exit(0)
 
-def cleanup():
+def cleanup(assistant_instance=None):
     """Clean up resources before exiting."""
     print("\nCleaning up resources...")
-    # Add any necessary cleanup code here
+    
+    # Clean up assistant resources if available
+    if assistant_instance:
+        try:
+            assistant_instance.cleanup()
+        except Exception as e:
+            print(f"Error in assistant cleanup: {e}")
+    
     print("Cleanup complete.")
 
 if __name__ == "__main__":
@@ -37,12 +44,13 @@ if __name__ == "__main__":
     setup_environment()
     print("Press Ctrl+C to exit")
 
+    assistant = None
     try:
         assistant = Assistant()
         assistant.run()
     except KeyboardInterrupt:
-        cleanup()
+        cleanup(assistant)
     except Exception as e:
         print(f"Error: {e}")
-        cleanup()
+        cleanup(assistant)
         sys.exit(1)
