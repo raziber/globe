@@ -1,8 +1,8 @@
 from enum import Enum
-import os
 from speech_to_text import SpeechToText
 from gpt_handler import GPTHandler
 from text_to_speech import TextToSpeech
+from globe_visualization import GlobeVisualization
 import time
 
 class State(Enum):
@@ -26,8 +26,7 @@ class Assistant:
             print(f"Warning: {e}")
             print("GPT functionality will not be available.")
             self.gpt_available = False
-            
-        # Initialize the text-to-speech handler
+              # Initialize the text-to-speech handler
         try:
             self.text_to_speech = TextToSpeech()
             self.tts_available = True
@@ -38,6 +37,17 @@ class Assistant:
             print(f"Warning: {e}")
             print("Text-to-speech functionality will not be available.")
             self.tts_available = False
+            
+        # Initialize the globe visualization
+        try:
+            self.globe = GlobeVisualization()
+            self.globe_available = True
+            # Set a nice dim background for the globe
+            self.globe.set_background([5, 5, 15])  # Dim blue background
+        except Exception as e:
+            print(f"Warning: Could not initialize globe visualization: {e}")
+            print("Globe visualization functionality will not be available.")
+            self.globe_available = False
             
         print("Assistant initialized.")
 
@@ -145,25 +155,20 @@ class Assistant:
                 self.text_to_speech.speak(self.response)
             except Exception as e:
                 print(f"Error in text-to-speech: {e}")
-        
-        # If there's location data, you would update the globe visualization
-        if hasattr(self, 'location_data') and self.location_data:
-            location_type = self.location_data.get('type')
-            if location_type == 'point':
-                lat = self.location_data.get('lat')
-                lon = self.location_data.get('lon')
-                color = self.location_data.get('color_rgb', [255, 0, 0])  # Default to red if no color specified
-                print(f"Globe should highlight point: Latitude {lat}, Longitude {lon} with color {color}")
-                # Here you would call your globe visualization function
-                # For example: globe.highlight_point(lat, lon, color)
+          # If there's location data and globe visualization is available, update the globe
+        if hasattr(self, 'location_data') and self.location_data and self.globe_available:
+            try:
+                # Process the location data and update the globe
+                print("Updating globe visualization...")
+                success = self.globe.process_location_data(self.location_data)
                 
-            elif location_type == 'region':
-                polygon = self.location_data.get('polygon', [])
-                color = self.location_data.get('color_rgb', [0, 0, 255])  # Default to blue if no color specified
-                print(f"Globe should highlight region with {len(polygon)} points and color {color}")                # Here you would call your globe visualization function
-                # For example: globe.highlight_region(polygon, color)
-        
-        import time
+                if success:
+                    print("Globe visualization updated successfully")
+                else:
+                    print("Failed to update globe visualization")
+                    
+            except Exception as e:
+                print(f"Error updating globe visualization: {e}")
         time.sleep(1)  # Pause before returning to idle
         self.state = State.IDLE
         
@@ -180,5 +185,13 @@ class Assistant:
                 self.text_to_speech.cleanup()
             except Exception as e:
                 print(f"Error cleaning up text-to-speech: {e}")
+        
+        # Clean up globe visualization resources if available
+        if hasattr(self, 'globe_available') and self.globe_available:
+            try:
+                print("Cleaning up globe visualization resources...")
+                self.globe.cleanup()
+            except Exception as e:
+                print(f"Error cleaning up globe visualization: {e}")
                 
         print("Assistant cleanup complete.")
