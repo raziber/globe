@@ -1,26 +1,26 @@
 """
 Globe visualization handler to control the globe LEDs based on location data.
 This module translates geographic coordinates to LED positions and sends
-commands via WebSocket to illuminate the appropriate LEDs.
+commands via TCP socket to illuminate the appropriate LEDs.
 """
 import time
 import json
 import math
 from typing import List, Dict, Any, Optional, Tuple, Union
-from websocket_client import WebSocketClient
+from socket_client import SocketClient, TOTAL_LEDS
 
 class GlobeVisualization:
-    def __init__(self, ip: str = '100.85.4.50', port: int = 8765, min_delay: float = 0.2):
+    def __init__(self, ip: str = '100.85.4.50', port: int = 5000, min_delay: float = 0.2):
         """
         Initialize the globe visualization handler.
         
         Args:
-            ip: IP address of the WebSocket server
-            port: Port number of the WebSocket server
+            ip: IP address of the socket server
+            port: Port number of the socket server
             min_delay: Minimum delay between sends in seconds
         """
-        self.websocket = WebSocketClient(ip=ip, port=port, min_delay=min_delay)
-        self.websocket.start()
+        self.socket_client = SocketClient(ip=ip, port=port, min_delay=min_delay)
+        self.socket_client.start()
         self.default_background = [5, 5, 5]  # Very dim white as default background
         self.current_led_data = self._create_led_data(self.default_background)
         print("Globe visualization handler initialized")
@@ -121,7 +121,7 @@ class GlobeVisualization:
             self.current_led_data[idx] = color
             
         # Send the data to the globe
-        return self.websocket.send_led_data(self.current_led_data)
+        return self.socket_client.send_led_data(self.current_led_data)
     
     def highlight_region(self, polygon: List[List[float]], 
                          color: List[int] = None,
@@ -157,7 +157,7 @@ class GlobeVisualization:
                 self.current_led_data[idx] = color
         
         # Send the data to the globe
-        return self.websocket.send_led_data(self.current_led_data)
+        return self.socket_client.send_led_data(self.current_led_data)
     
     def process_location_data(self, location_data: Dict[str, Any]) -> bool:
         """
@@ -210,7 +210,7 @@ class GlobeVisualization:
             True if successful, False otherwise
         """
         led_data = self._create_led_data(color)
-        return self.websocket.send_led_data(led_data)
+        return self.socket_client.send_led_data(led_data)
     
     def turn_off(self) -> bool:
         """
@@ -239,8 +239,8 @@ class GlobeVisualization:
             self.turn_off()
             time.sleep(0.5)  # Wait for the command to be sent
             
-            # Stop the WebSocket client
-            self.websocket.stop()
+            # Stop the socket client
+            self.socket_client.stop()
             print("Globe visualization cleanup complete")
         except Exception as e:
             print(f"Error during globe visualization cleanup: {e}")
