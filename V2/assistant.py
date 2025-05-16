@@ -154,13 +154,13 @@ class Assistant:
                 print("Speaking response...")
                 self.text_to_speech.speak(self.response)
             except Exception as e:
-                print(f"Error in text-to-speech: {e}")
-          # If there's location data and globe visualization is available, update the globe
+                print(f"Error in text-to-speech: {e}")        # If there's location data and globe visualization is available, update the globe
         if hasattr(self, 'location_data') and self.location_data and self.globe_available:
             try:
-                # Process the location data and update the globe
+                # Process the location data and update the globe using the buffer handling method
                 print("Updating globe visualization...")
-                success = self.globe.process_location_data(self.location_data)
+                # Use the new process_ai_response_to_led method for better buffer handling
+                success = self.globe.process_ai_response_to_led({"location": self.location_data})
                 
                 if success:
                     print("Globe visualization updated successfully")

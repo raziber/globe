@@ -2,7 +2,7 @@ import json
 import time
 import socket
 import threading
-from typing import List, Optional
+from typing import List
 
 # Constants
 DEFAULT_SERVER_IP = '100.85.4.50'
@@ -13,7 +13,7 @@ SOCKET_TIMEOUT = 5.0  # Socket timeout in seconds
 RECONNECT_DELAY_INITIAL = 2.0  # Initial delay before reconnecting
 RECONNECT_DELAY_MAX = 30.0  # Maximum delay before reconnecting
 RECONNECT_BACKOFF_FACTOR = 1.5  # Factor to increase delay by on each attempt
-SOCKET_BUFFER_SIZE = 2048  # Buffer size for receiving data
+SOCKET_BUFFER_SIZE = 8192  # Buffer size for receiving data
 CONNECTION_RETRY_COUNT = 5  # Number of retries for connection
 
 class SocketClient:
@@ -172,13 +172,13 @@ class SocketClient:
         Close the socket connection.
         """
         self.is_connected = False
-        if self.connection:
+        if self.connection:        
             try:
                 self.connection.close()
             except Exception as e:
                 print(f"Error closing connection: {e}")
         self.connection = None
-
+        
     def _send_data(self, led_data: List[List[int]]):
         """
         Send LED data over socket with rate limiting.
@@ -199,6 +199,8 @@ class SocketClient:
             
         # Send the data with a newline at the end for line-based processing
         json_data = json.dumps(led_data) + '\n'
+        print(f"Data size: {len(json_data)} bytes")
+        
         try:
             self.connection.sendall(json_data.encode('utf-8'))
             self.last_send_time = time.time()
@@ -262,6 +264,35 @@ class SocketClient:
                     
         return True
 
+def test_socket_client2():
+    # just a solid all red, then all blue
+    client = SocketClient()
+    client.start()
+    try:
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(TOTAL_LEDS):
+            led_data[i] = [255, 0, 0]  # Set all LEDs to red
+        client.send_led_data(led_data)
+        time.sleep(2)
+        
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(TOTAL_LEDS):
+            led_data[i] = [0, 0, 255]  # Set all LEDs to blue
+        client.send_led_data(led_data)
+        time.sleep(2)
+
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(TOTAL_LEDS):
+            led_data[i] = [0, 255, 0]  # Set all LEDs to blue
+        client.send_led_data(led_data)
+        time.sleep(2)
+
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        client.send_led_data(led_data)
+        time.sleep(1)
+    finally:
+        client.stop()
+        print("Socket client stopped")
 
 # Example usage
 def test_socket_client():
@@ -270,47 +301,54 @@ def test_socket_client():
     client.start()
     
     try:
-        # Create a sample LED data array (all red)
-        led_data = [[255, 0, 0] for _ in range(TOTAL_LEDS)]
-        
-        # Send the data
-        print("Sending all red")
+        # Test 1: First 220 LEDs red, rest off
+        print("\nTest 1: First 220 LEDs red, rest off")
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(220):
+            led_data[i] = [255, 0, 0]  # Set first 220 LEDs to red
         client.send_led_data(led_data)
+        time.sleep(3)
         
-        # Wait a bit
-        time.sleep(2)
-        
-        # Create another pattern (all blue)
-        led_data = [[0, 0, 255] for _ in range(TOTAL_LEDS)]
-        
-        # Send the new data
-        print("Sending all blue")
+        # Test 2: LEDs 220-402 green, rest off
+        print("\nTest 2: LEDs 220-402 green, rest off")
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(220, TOTAL_LEDS):
+            led_data[i] = [0, 255, 0]  # Set last ~180 LEDs to green
         client.send_led_data(led_data)
+        time.sleep(3)
         
-        # Wait for it to be sent
-        time.sleep(2)
-        
-        # Create a rainbow pattern
-        print("Sending rainbow pattern")
-        rainbow_data = []
+        # Test 3: Sequential LED test (one at a time)
+        print("\nTest 3: Sequential LED test")
         for i in range(TOTAL_LEDS):
-            # Create a rainbow-like effect
-            hue = (i / TOTAL_LEDS) * 360
-            if hue < 60:
-                r, g, b = 255, int((hue / 60) * 255), 0
-            elif hue < 120:
-                r, g, b = int(((120 - hue) / 60) * 255), 255, 0
-            elif hue < 180:
-                r, g, b = 0, 255, int(((hue - 120) / 60) * 255)
-            elif hue < 240:
-                r, g, b = 0, int(((240 - hue) / 60) * 255), 255
-            elif hue < 300:
-                r, g, b = int(((hue - 240) / 60) * 255), 0, 255
-            else:
-                r, g, b = 255, 0, int(((360 - hue) / 60) * 255)
-            rainbow_data.append([r, g, b])
+            led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]  # All off
+            led_data[i] = [0, 0, 255]  # Set one LED to blue
+            print(f"Lighting LED {i}/402")
+            client.send_led_data(led_data)
+            time.sleep(0.05)  # Just enough to see it change
+            
+            # Skip ahead if we've confirmed the pattern works
+            if i == 230:
+                user_input = input("Continue with all LEDs? (y/n): ")
+                if user_input.lower() != 'y':
+                    break
         
-        client.send_led_data(rainbow_data)
+        # Test 4: Try smaller chunks of data
+        print("\nTest 4: Testing with smaller data chunks")
+        
+        # First half red
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(TOTAL_LEDS // 2):
+            led_data[i] = [255, 0, 0]
+        print("First half red")
+        client.send_led_data(led_data)
+        time.sleep(2)
+        
+        # Second half blue
+        led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
+        for i in range(TOTAL_LEDS // 2, TOTAL_LEDS):
+            led_data[i] = [0, 0, 255]
+        print("Second half blue")
+        client.send_led_data(led_data)
         time.sleep(2)
         
         # Turn off all LEDs
@@ -326,4 +364,4 @@ def test_socket_client():
 
 if __name__ == "__main__":
     print("Testing Socket client...")
-    test_socket_client()
+    test_socket_client2()

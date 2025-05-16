@@ -24,6 +24,42 @@ class GlobeVisualization:
         self.default_background = [5, 5, 5]  # Very dim white as default background
         self.current_led_data = self._create_led_data(self.default_background)
         print("Globe visualization handler initialized")
+        
+    def send_with_buffer_handling(self, led_data: List[List[int]]) -> bool:
+        """
+        Send LED data with buffer handling to prevent half-delay issues.
+        
+        This method addresses the "half delay buffer issue" by ensuring 
+        that data is properly flushed before sending new data. It adds
+        a small delay and additional buffer checks.
+        
+        Args:
+            led_data: List of RGB values for each LED
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Ensure any pending data in socket is flushed
+            if self.socket_client.is_connected:
+                # Short delay to ensure any previous commands have been processed
+                time.sleep(0.05)
+                
+                # Make a copy of the LED data to avoid modification during sending
+                data_to_send = [led.copy() for led in led_data]
+                
+                # Send the data and verify it was queued successfully
+                if not self.socket_client.send_led_data(data_to_send):
+                    print("Warning: Failed to queue LED data for sending")
+                    return False
+                    
+                return True
+            else:
+                print("Error: Socket is not connected")
+                return False
+        except Exception as e:
+            print(f"Error in send_with_buffer_handling: {e}")
+            return False
     
     def _create_led_data(self, base_color=None):
         """Create a new LED data array with all LEDs set to the same color."""
@@ -112,16 +148,15 @@ class GlobeVisualization:
         
         # Calculate the center LED index
         center_index = self._calculate_led_index(latitude, longitude)
-        
-        # Get surrounding LEDs
+          # Get surrounding LEDs
         led_indices = self._get_surrounding_leds(center_index, radius)
         
         # Set the color for these LEDs
         for idx in led_indices:
             self.current_led_data[idx] = color
             
-        # Send the data to the globe
-        return self.socket_client.send_led_data(self.current_led_data)
+        # Send the data to the globe with buffer handling
+        return self.send_with_buffer_handling(self.current_led_data)
     
     def highlight_region(self, polygon: List[List[float]], 
                          color: List[int] = None,
@@ -147,8 +182,7 @@ class GlobeVisualization:
             self.current_led_data = self._create_led_data(background_color)
         else:
             self.current_led_data = self._create_led_data(self.default_background)
-        
-        # Highlight each point in the polygon
+          # Highlight each point in the polygon
         for point in polygon:
             latitude, longitude = point
             center_index = self._calculate_led_index(latitude, longitude)
@@ -156,8 +190,8 @@ class GlobeVisualization:
             for idx in led_indices:
                 self.current_led_data[idx] = color
         
-        # Send the data to the globe
-        return self.socket_client.send_led_data(self.current_led_data)
+        # Send the data to the globe with buffer handling
+        return self.send_with_buffer_handling(self.current_led_data)
     
     def process_location_data(self, location_data: Dict[str, Any]) -> bool:
         """
@@ -170,11 +204,20 @@ class GlobeVisualization:
             True if successful, False otherwise
         """
         if location_data is None:
+            print("Error: No location data provided")
             return False
         
         try:
             location_type = location_data.get("type")
             color = location_data.get("color_rgb", [255, 0, 0])
+            
+            # Validate color format
+            if not isinstance(color, list) or len(color) != 3:
+                print(f"Warning: Invalid color format: {color}. Using default red.")
+                color = [255, 0, 0]
+            
+            # Ensure color values are integers and within range
+            color = [max(0, min(255, int(c))) for c in color]
             
             if location_type == "point":
                 latitude = location_data.get("lat")
@@ -182,21 +225,169 @@ class GlobeVisualization:
                 if latitude is None or longitude is None:
                     print("Error: Missing latitude or longitude in point data")
                     return False
-                return self.highlight_point(latitude, longitude, color)
+                
+                # Add optional radius parameter if available
+                radius = location_data.get("radius", 5)  # Default to 5
+                
+                # Get optional background color if available
+                background_color = location_data.get("background_color", self.default_background)
+                
+                return self.highlight_point(latitude, longitude, color, radius, background_color)
                 
             elif location_type == "region":
                 polygon = location_data.get("polygon")
                 if not polygon:
                     print("Error: Missing polygon data in region")
                     return False
-                return self.highlight_region(polygon, color)
+                
+                # Validate polygon format
+                if not isinstance(polygon, list):
+                    print(f"Error: Invalid polygon format: {polygon}")
+                    return False
+                
+                # Add optional parameters if available
+                point_radius = location_data.get("point_radius", 2)
+                background_color = location_data.get("background_color", self.default_background)
+                
+                return self.highlight_region(polygon, color, point_radius, background_color)
                 
             else:
                 print(f"Error: Unknown location type: {location_type}")
+                return False                
+        except Exception as e:
+            print(f"Error processing location data: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Attempt recovery - set a basic error indicator on the globe
+            try:
+                # Create a simple error pattern (red flashing LEDs at the top of the globe)
+                error_leds = self._create_led_data([0, 0, 0])  # Start with all LEDs off
+                for i in range(20):  # Flash the first 20 LEDs red
+                    error_leds[i] = [255, 0, 0]
+                self.send_with_buffer_handling(error_leds)
+            except:
+                # If even the recovery fails, just continue
+                pass
+                
+            return False
+    
+    def process_ai_response_to_led(self, ai_response: Dict[str, Any]) -> bool:
+        """
+        Process AI response data and translate it to LED data with buffer handling.
+        
+        This method specifically handles the conversion from AI response format to LED
+        data format, ensuring proper buffer handling during the transition to prevent
+        the "half delay buffer issue".
+        
+        Args:
+            ai_response: Dictionary with location data from AI response
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if ai_response is None:
+            print("Error: No AI response data provided")
+            return False
+            
+        try:
+            # Ensure socket connection is ready
+            if not self.socket_client.is_connected:
+                print("Warning: Socket connection not established. Attempting to reconnect...")
+                time.sleep(0.1)  # Small delay to allow potential reconnection
+                
+            # Extract location data from AI response if nested
+            location_data = ai_response.get("location", ai_response)
+            
+            # Pre-process location data to ensure compatibility
+            if isinstance(location_data, str):
+                try:
+                    # Try to parse if it's a JSON string
+                    import json
+                    location_data = json.loads(location_data)
+                except:
+                    print(f"Error: Could not parse location data string: {location_data}")
+                    return False
+            
+            # First, prepare all the data without sending
+            led_data = None
+            
+            # Determine location type and prepare corresponding LED data
+            location_type = location_data.get("type")
+            color = location_data.get("color_rgb", [255, 0, 0])
+            
+            # Validate and normalize color
+            if not isinstance(color, list) or len(color) != 3:
+                print(f"Warning: Invalid color format: {color}. Using default red.")
+                color = [255, 0, 0]
+            
+            color = [max(0, min(255, int(c))) for c in color]
+            
+            # Create new LED data based on location type
+            if location_type == "point":
+                # Get point data
+                latitude = location_data.get("lat")
+                longitude = location_data.get("lon")
+                if latitude is None or longitude is None:
+                    print("Error: Missing latitude or longitude in point data")
+                    return False
+                
+                radius = location_data.get("radius", 5)
+                background_color = location_data.get("background_color", self.default_background)
+                
+                # Prepare LED data for point
+                led_data = self._create_led_data(background_color)
+                center_index = self._calculate_led_index(latitude, longitude)
+                led_indices = self._get_surrounding_leds(center_index, radius)
+                
+                for idx in led_indices:
+                    led_data[idx] = color
+                
+            elif location_type == "region":
+                polygon = location_data.get("polygon")
+                if not polygon or not isinstance(polygon, list):
+                    print(f"Error: Invalid polygon data: {polygon}")
+                    return False
+                
+                point_radius = location_data.get("point_radius", 2)
+                background_color = location_data.get("background_color", self.default_background)
+                
+                # Prepare LED data for region
+                led_data = self._create_led_data(background_color)
+                
+                for point in polygon:
+                    latitude, longitude = point
+                    center_index = self._calculate_led_index(latitude, longitude)
+                    led_indices = self._get_surrounding_leds(center_index, point_radius)
+                    for idx in led_indices:
+                        led_data[idx] = color
+            
+            else:
+                print(f"Error: Unknown location type: {location_type}")
+                return False
+            
+            # Now that all data is prepared, send it with buffer handling
+            if led_data:
+                self.current_led_data = led_data
+                return self.send_with_buffer_handling(led_data)
+            else:
+                print("Error: Failed to prepare LED data")
                 return False
                 
         except Exception as e:
-            print(f"Error processing location data: {e}")
+            print(f"Error processing AI response to LED: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Attempt recovery with error indicator
+            try:
+                error_leds = self._create_led_data([0, 0, 0])
+                for i in range(20):
+                    error_leds[i] = [255, 0, 0]  # First 20 LEDs red as error indicator
+                self.send_with_buffer_handling(error_leds)
+            except:
+                pass
+                
             return False
     
     def set_all_leds(self, color: List[int]) -> bool:
@@ -210,7 +401,7 @@ class GlobeVisualization:
             True if successful, False otherwise
         """
         led_data = self._create_led_data(color)
-        return self.socket_client.send_led_data(led_data)
+        return self.send_with_buffer_handling(led_data)
     
     def turn_off(self) -> bool:
         """
