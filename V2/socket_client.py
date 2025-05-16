@@ -178,7 +178,7 @@ class SocketClient:
             except Exception as e:
                 print(f"Error closing connection: {e}")
         self.connection = None
-        
+      
     def _send_data(self, led_data: List[List[int]]):
         """
         Send LED data over socket with rate limiting.
@@ -202,8 +202,21 @@ class SocketClient:
         print(f"Data size: {len(json_data)} bytes")
         
         try:
-            self.connection.sendall(json_data.encode('utf-8'))
+            # Send the same data twice to ensure the entire globe updates
+            # First send
+            print("Sending frame (1st attempt)...")
+            data_bytes = json_data.encode('utf-8')
+            self.connection.sendall(data_bytes)
+            
+            # Add a small delay between sends
+            time.sleep(0.1)
+            
+            # Second send - sending the same data again to ensure full update
+            print("Sending frame (2nd attempt)...")
+            self.connection.sendall(data_bytes)
+            
             self.last_send_time = time.time()
+            print(f"Frame sent twice: {len(data_bytes)} bytes each time")
         except Exception as e:
             print(f"Error sending data: {e}")
             self.is_connected = False
@@ -269,21 +282,24 @@ def test_socket_client2():
     client = SocketClient()
     client.start()
     try:
+        print("Setting all LEDs to red...")
         led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
         for i in range(TOTAL_LEDS):
             led_data[i] = [255, 0, 0]  # Set all LEDs to red
         client.send_led_data(led_data)
         time.sleep(2)
         
+        print("Setting all LEDs to blue...")
         led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
         for i in range(TOTAL_LEDS):
             led_data[i] = [0, 0, 255]  # Set all LEDs to blue
         client.send_led_data(led_data)
         time.sleep(2)
 
+        print("Setting all LEDs to green...")
         led_data = [[0, 0, 0] for _ in range(TOTAL_LEDS)]
         for i in range(TOTAL_LEDS):
-            led_data[i] = [0, 255, 0]  # Set all LEDs to blue
+            led_data[i] = [0, 255, 0]  # Set all LEDs to green
         client.send_led_data(led_data)
         time.sleep(2)
 

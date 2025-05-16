@@ -148,13 +148,6 @@ class Assistant:
         # Display the response
         print(f"Globe Assistant: {self.response}")
         
-        # Use text-to-speech if available
-        if self.tts_available:
-            try:
-                print("Speaking response...")
-                self.text_to_speech.speak(self.response)
-            except Exception as e:
-                print(f"Error in text-to-speech: {e}")        # If there's location data and globe visualization is available, update the globe
         if hasattr(self, 'location_data') and self.location_data and self.globe_available:
             try:
                 # Process the location data and update the globe using the buffer handling method
@@ -169,6 +162,13 @@ class Assistant:
                     
             except Exception as e:
                 print(f"Error updating globe visualization: {e}")
+        # Use text-to-speech if available
+        if self.tts_available:
+            try:
+                print("Speaking response...")
+                self.text_to_speech.speak(self.response)
+            except Exception as e:
+                print(f"Error in text-to-speech: {e}")        # If there's location data and globe visualization is available, update the globe
         time.sleep(1)  # Pause before returning to idle
         self.state = State.IDLE
         
