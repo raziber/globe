@@ -49,7 +49,7 @@ class GPTHandler:
         )
 
         prompt = (
-            f"You are an interactive globe voice assistant. Your task is to answer user questions about places or regions on earch.\n you should strive to be as accurate as possible but still nive and not overly cautious.\n"
+            f"You are an interactive globe voice assistant. Your task is to answer user questions about places or regions on earch.\n you should strive to be as accurate as possible but still nive and not overly cautious.\n the R,G,B values should be visible to the user.\n"
             f"Always return your response in exactly this format:\n\n"
             f"Location JSON:\n"
             f"```json\n"

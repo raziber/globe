@@ -6,8 +6,12 @@ commands via TCP socket to illuminate the appropriate LEDs.
 import time
 import json
 import math
+import numpy as np
 from typing import List, Dict, Any, Optional, Tuple, Union
 from socket_client import SocketClient, TOTAL_LEDS
+
+RADIUS_RATIO = 0.8  # same as your LED layout radius
+LED_LAYOUT_FILE = "coordinates_radians_rotated.json"
 
 class GlobeVisualization:
     def __init__(self, ip: str = '100.85.4.50', port: int = 5000, min_delay: float = 0.2):
@@ -80,62 +84,48 @@ class GlobeVisualization:
         if base_color is None:
             base_color = [0, 0, 0]  # Default to all off
         return [base_color.copy() for _ in range(402)]    
-    
+
+    def sph_to_cart(self, theta, phi, r=1.0):
+        x = r * math.sin(phi) * math.cos(theta)
+        y = r * math.sin(phi) * math.sin(theta)
+        z = r * math.cos(phi)
+        return np.array([x, y, z])
+
+    def latlon_to_sph(self, lat, lon):
+        lat_rad = math.radians(90 - lat)
+        lon_rad = math.radians(lon % 360)
+        return lon_rad, lat_rad
+
     def _calculate_led_index(self, latitude: float, longitude: float) -> int:
         """
-        Calculate the LED index based on latitude and longitude using spherical excess method.
-        
-        Args:
-            latitude: Latitude in degrees (-90 to 90)
-            longitude: Longitude in degrees (-180 to 180)
-            
-        Returns:
-            The index of the LED closest to the given coordinates
+        Calculate the LED index based on latitude and longitude using angular distance in spherical coordinates.
         """
-        # Convert degrees to radians for spherical calculations
-        lat_rad = math.radians(latitude + 90)
-        lon_rad = math.radians(longitude + 180)
+        with open(LED_LAYOUT_FILE, "r") as f:
+            leds = json.load(f)
+
+        lat = max(-89.999, min(89.999, latitude))
+        theta1, phi1 = self.latlon_to_sph(lat, longitude)
+
+        def angular_distance(led):
+            theta2 = led["theta"]
+            phi2 = led["phi"]
+            if theta2 > 2 * math.pi or phi2 > 2 * math.pi:
+                theta2 = math.radians(theta2)
+                phi2 = math.radians(phi2)
+            return (
+                math.sin(phi1) * math.sin(phi2) +
+                math.cos(phi1) * math.cos(phi2) * math.cos(theta1 - theta2)
+            )
+
+        closest_led = max(
+            (led for led in leds if led["id"] >= 46),
+            key=angular_distance
+        )
+
+        print(f"Closest LED to lat: {latitude}, lon: {longitude} is LED ID: {closest_led['id']}")
+        return closest_led["id"]
+
         
-        # Total number of LEDs
-        total_leds = TOTAL_LEDS
-        
-        # Implement spherical excess method - divides the sphere into equal area regions
-        # This method ensures that each LED represents approximately equal area on the sphere
-        
-        # Calculate normalized coordinates using sinusoidal projection 
-        # (a simple equal-area projection)
-        y = lat_rad / math.pi  # -0.5 to 0.5
-        
-        # Use true spherical excess calculation for x-coordinate
-        # This accounts for the convergence of meridians at poles
-        x = lon_rad * math.cos(lat_rad) / math.pi  # Adjusts for narrowing at poles
-        
-        # Normalize to 0-1 range for both coordinates
-        y = (y + 0.5)  # 0 to 1 from south to north pole
-        x = (x + 1.0) / 2.0  # 0 to 1 around the circumference
-        
-        # Map to LEDs arranged in a grid-like pattern
-        rows = 20  # Assuming 20 rows of LEDs
-        cols = int(total_leds / rows)  # Columns per row
-        
-        # Adjust row calculations based on latitude to account for
-        # the different number of LEDs needed at different latitudes
-        row = int(y * (rows - 1))
-        
-        # At poles, fewer LEDs are needed, at equator more are needed
-        # Adjust column calculation based on the row (latitude band)
-        col_factor = math.cos(math.pi * (row / (rows - 1) - 0.5))
-        col_factor = max(0.5, col_factor)  # Ensure a minimum factor
-        
-        # Calculate column position
-        col = int(x * (cols - 1) * col_factor) % cols
-        
-        # Calculate final LED index
-        led_index = row * cols + col
-        led_index = min(total_leds - 1, max(0, led_index))  # Clamp to valid range
-        
-        return led_index
-    
     def _get_surrounding_leds(self, center_index: int, radius: int) -> List[int]:
         """
         Get the indices of LEDs surrounding a center LED using spherical geometry.
@@ -216,7 +206,7 @@ class GlobeVisualization:
         return result
     
     def highlight_point(self, latitude: float, longitude: float, 
-                        color: List[int] = None, radius: int = 5,
+                        color: List[int] = None, radius: int = 2,
                         background_color: List[int] = None) -> bool:
         """
         Highlight a point on the globe.
@@ -244,11 +234,11 @@ class GlobeVisualization:
         center_index = self._calculate_led_index(latitude, longitude)
         
         # Get surrounding LEDs
-        led_indices = self._get_surrounding_leds(center_index, radius)
+        #led_indices = self._get_surrounding_leds(center_index, radius)
         
         # Set the color for these LEDs
-        for idx in led_indices:
-            self.current_led_data[idx] = color
+        #for idx in led_indices:
+         #   self.current_led_data[idx] = color
             
         # Send the data to the globe with buffer handling
         return self.send_with_buffer_handling(self.current_led_data)
@@ -532,6 +522,86 @@ class GlobeVisualization:
             print("Globe visualization cleanup complete")
         except Exception as e:
             print(f"Error during globe visualization cleanup: {e}")
+    
+    def debug_leds(self, location_data: Dict[str, Any], visualize: bool = True) -> bool:
+        """
+        Debug the LED mapping for a location by showing a 3D visualization.
+        
+        Args:
+            location_data: Dictionary with location data
+            visualize: Whether to show the 3D visualization
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Import the 3D visualizer (only when needed)
+            from globe_visualizer_3d import Globe3DVisualizer
+            
+            location_type = location_data.get("type")
+            
+            if location_type == "point":
+                latitude = location_data.get("lat")
+                longitude = location_data.get("lon")
+                if latitude is None or longitude is None:
+                    print("Error: Missing latitude or longitude in point data")
+                    return False
+                
+                radius = location_data.get("radius", 5)  # Default radius
+                
+                print(f"Debugging point at lat: {latitude}, lon: {longitude}")
+                
+                # Find LED ID for debugging
+                # Convert lat/lon to spherical coordinates 
+                theta, phi = self.latlon_to_sph(latitude, longitude)
+                target = self.sph_to_cart(theta, phi, RADIUS_RATIO)
+                
+                # Find closest LED
+                with open(LED_LAYOUT_FILE, "r") as f:
+                    leds = json.load(f)
+                
+                # Get all matching LEDs that will be highlighted
+                closest_led = min(
+                    (led for led in leds if led["id"] >= 46),
+                    key=lambda led: np.linalg.norm(self.sph_to_cart(led["theta"], led["phi"], RADIUS_RATIO) - target)
+                )
+                center_index = closest_led["id"]
+                led_indices = self._get_surrounding_leds(center_index, radius)
+                
+                print(f"Center LED ID: {center_index}")
+                print(f"Total LEDs highlighted: {len(led_indices)}")
+                
+                if visualize:
+                    visualizer = Globe3DVisualizer()
+                    visualizer.visualize_point_highlight(latitude, longitude, radius)
+                
+                return True
+                
+            elif location_type == "region":
+                polygon = location_data.get("polygon")
+                if not polygon or not isinstance(polygon, list):
+                    print("Error: Invalid polygon data in region")
+                    return False
+                
+                point_radius = location_data.get("point_radius", 2)  # Default radius
+                
+                print(f"Debugging region with {len(polygon)} points")
+                
+                if visualize:
+                    visualizer = Globe3DVisualizer()
+                    visualizer.visualize_region_highlight(polygon, point_radius)
+                
+                return True
+                
+            else:
+                print(f"Error: Unknown location type: {location_type}")
+                return False
+                
+        except Exception as e:
+            print(f"Error debugging LEDs: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 
 # Test function to verify functionality
@@ -572,8 +642,32 @@ def test_globe_visualization():
         globe.process_location_data(sample_data)
         time.sleep(3)
         
-        # Test 5: Turn off all LEDsW
-        print("\nTest 5: All LEDs off")
+        # Test 5: Debug visualization (no actual LEDs lit)
+        print("\nTest 5: Debug visualization")
+        # Test both point and region debug visualizations
+        point_debug_data = {
+            "type": "point",
+            "lat": 51.5074,  # London
+            "lon": -0.1278,
+            "radius": 5
+        }
+        region_debug_data = {
+            "type": "region",
+            "polygon": [
+                [35.6762, 139.6503],  # Tokyo
+                [22.3193, 114.1694],  # Hong Kong
+                [1.3521, 103.8198],   # Singapore
+                [13.7563, 100.5018]    # Bangkok
+            ],
+            "point_radius": 2
+        }
+        # First debug the point
+        globe.debug_leds(point_debug_data)
+        # Then debug the region
+        globe.debug_leds(region_debug_data)
+        
+        # Test 6: Turn off all LEDs
+        print("\nTest 6: All LEDs off")
         globe.turn_off()
         
     finally:
