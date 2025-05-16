@@ -8,7 +8,7 @@ import argparse
 
 PORT = '/dev/ttyAMA0'
 BAUD = 115200
-NUM_LEDS = 409
+NUM_LEDS = 402
 SNAKE_LENGTH = 1
 
 # Parse command-line arguments
