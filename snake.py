@@ -3,7 +3,7 @@ import time
 
 PORT = '/dev/ttyAMA0'
 BAUD = 115200
-NUM_LEDS = 409
+NUM_LEDS = 402
 DELAY = 0.01  # Safe delay
 
 ser = serial.Serial(PORT, BAUD)

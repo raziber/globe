@@ -8,7 +8,7 @@ import argparse
 
 PORT = '/dev/ttyAMA0'
 BAUD = 115200
-NUM_LEDS = 409
+NUM_LEDS = 402
 SNAKE_LENGTH = 1
 
 # Parse command-line arguments
@@ -51,7 +51,8 @@ old_settings = termios.tcgetattr(fd)
 try:
     tty.setcbreak(fd)
     print("Press 'd' to move forward, 'a' to move backward. Ctrl+C to quit.")
-
+    
+    send_frame()
     while True:
         if key_pressed():
             key = sys.stdin.read(1)
