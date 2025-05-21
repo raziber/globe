@@ -8,7 +8,7 @@ constexpr uint32_t BAUDRATE = 115200;
 
 /* ---------- LED layout ---------------------------------- */
 constexpr uint16_t TOTAL_LEDS = 402;
-constexpr uint16_t NUM_LEDS_A = 220;                 // first segment
+constexpr uint16_t NUM_LEDS_A = 202;                 // first segment
 constexpr uint16_t NUM_LEDS_B = TOTAL_LEDS - NUM_LEDS_A;
 
 /* ---------- GPIO pin ------------------------------------ */
