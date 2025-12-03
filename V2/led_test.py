@@ -10,7 +10,7 @@ from rpi_ws281x import PixelStrip, Color
 import argparse
 
 # LED strip configuration:
-LED_COUNT = 16        # Number of LED pixels.
+LED_COUNT = 403        # Number of LED pixels.
 LED_PIN = 18          # GPIO pin connected to the pixels (18 uses PWM!).
 # LED_PIN = 10        # GPIO pin connected to the pixels (10 uses SPI /dev/spidev0.0).
 LED_FREQ_HZ = 800000  # LED signal frequency in hertz (usually 800khz)
@@ -26,7 +26,7 @@ def colorWipe(strip, color, wait_ms=50):
     for i in range(strip.numPixels()):
         strip.setPixelColor(i, color)
         strip.show()
-        time.sleep(wait_ms / 1000.0)
+        time.sleep(wait_ms / 4000.0)
 
 
 def theaterChase(strip, color, wait_ms=50, iterations=10):
@@ -36,7 +36,7 @@ def theaterChase(strip, color, wait_ms=50, iterations=10):
             for i in range(0, strip.numPixels(), 3):
                 strip.setPixelColor(i + q, color)
             strip.show()
-            time.sleep(wait_ms / 1000.0)
+            time.sleep(wait_ms / 4000.0)
             for i in range(0, strip.numPixels(), 3):
                 strip.setPixelColor(i + q, 0)
 
@@ -59,7 +59,7 @@ def rainbow(strip, wait_ms=20, iterations=1):
         for i in range(strip.numPixels()):
             strip.setPixelColor(i, wheel((i + j) & 255))
         strip.show()
-        time.sleep(wait_ms / 1000.0)
+        time.sleep(wait_ms / 4000.0)
 
 
 def rainbowCycle(strip, wait_ms=20, iterations=5):
@@ -69,7 +69,7 @@ def rainbowCycle(strip, wait_ms=20, iterations=5):
             strip.setPixelColor(i, wheel(
                 (int(i * 256 / strip.numPixels()) + j) & 255))
         strip.show()
-        time.sleep(wait_ms / 1000.0)
+        time.sleep(wait_ms / 4000.0)
 
 
 def theaterChaseRainbow(strip, wait_ms=50):
@@ -79,7 +79,7 @@ def theaterChaseRainbow(strip, wait_ms=50):
             for i in range(0, strip.numPixels(), 3):
                 strip.setPixelColor(i + q, wheel((i + j) % 255))
             strip.show()
-            time.sleep(wait_ms / 1000.0)
+            time.sleep(wait_ms / 4000.0)
             for i in range(0, strip.numPixels(), 3):
                 strip.setPixelColor(i + q, 0)
 
